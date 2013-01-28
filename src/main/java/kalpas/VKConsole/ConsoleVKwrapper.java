@@ -1,10 +1,14 @@
 package kalpas.VKConsole;
 
+import java.util.Map;
+
 import kalpas.VKCore.VKModule;
 import kalpas.VKCore.simple.DO.User;
 import kalpas.VKCore.simple.helper.GMLHelper;
 import kalpas.VKCore.simple.helper.HttpClientContainer;
 import kalpas.VKCore.stats.GroupStats;
+import kalpas.VKCore.stats.WallStats;
+import kalpas.VKCore.stats.DO.EdgeProperties;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -40,6 +44,7 @@ public class ConsoleVKwrapper {
     private static Option            user      = null;
     private static Option            group     = null;
     private static Option            file      = null;
+    private static Option            dynamics  = null;
 
     private static Injector          injector  = Guice.createInjector(new VKModule());
 
@@ -55,6 +60,8 @@ public class ConsoleVKwrapper {
 
             if (line.hasOption(graph.getOpt())) {
                 createGraph(line);
+            } else if (line.hasOption(dynamics.getOpt())) {
+                getDynamics(line);
             } else {
                 logger.info("no options was passed to select activity\ngraph would be created");
                 createGraph(line);
@@ -87,11 +94,43 @@ public class ConsoleVKwrapper {
             throw new IllegalArgumentException("neither group id nor user id were specified");
         }
     }
+    
+    private static void getDynamics(CommandLine line) {
+        if (line.getOptionValue(group.getOpt()) != null) {
+
+            String gid = line.getOptionValue(group.getOpt());
+            String fileName = line.getOptionValue(file.getOpt());
+            if (fileName == null) {
+                fileName = "club" + gid + "timestamp" + new DateTime().getMillis();
+                logger.warn("file name wasn't specified. generating default - {}", fileName);
+            }
+
+            WallStats stats = injector.getInstance(WallStats.class);
+
+            // TODO remove count
+            Multimap<User, Map.Entry<EdgeProperties, User>> multimap = stats.getRepostsNet(gid);
+            GMLHelper.writeToFileM("reposts" + fileName, multimap);
+
+            // TODO remove count
+            multimap = stats.getInteractions(gid, null);
+            GMLHelper.writeToFileM("interactions" + fileName, multimap);
+
+            stats.saveDynamics(gid, null);
+
+            injector.getInstance(HttpClientContainer.class).shutdown();
+
+        } else if (line.getOptionValues(user.getOpt()) != null) {
+            throw new UnsupportedOperationException("getting user graph is not implemented yet");
+        } else {
+            throw new IllegalArgumentException("neither group id nor user id were specified");
+        }
+    }
 
     private static Options createOptions() {
         Options options = new Options();
 
         graph = new Option("G", "graph", false, "generate connections graph");
+        dynamics = new Option("D", "dynamics", false, "generate dynamics");
         user = OptionBuilder.withArgName("uid").hasArg().withDescription("user id").withLongOpt("user").create("u");
         group = OptionBuilder.withArgName("gid").hasArg().withDescription("group id").withLongOpt("group").create("g");
         file = OptionBuilder.withArgName("file").hasArg().withDescription("output file").withLongOpt("file")
@@ -101,6 +140,7 @@ public class ConsoleVKwrapper {
         options.addOption(user);
         options.addOption(graph);
         options.addOption(file);
+        options.addOption(dynamics);
         return options;
     }
 }
