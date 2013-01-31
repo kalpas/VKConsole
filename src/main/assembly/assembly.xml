@@ -18,6 +18,7 @@
             </includes>
             <excludes>
                 <exclude>original*</exclude>
+                <exclude>*-shaded.jar</exclude>
             </excludes>
         </fileSet>
     </fileSets>

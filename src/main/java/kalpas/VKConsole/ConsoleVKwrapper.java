@@ -107,13 +107,11 @@ public class ConsoleVKwrapper {
 
             WallStats stats = injector.getInstance(WallStats.class);
 
-            // TODO remove count
             Multimap<User, Map.Entry<EdgeProperties, User>> multimap = stats.getRepostsNet(gid);
             GMLHelper.writeToFileM("reposts" + fileName, multimap);
 
-            // TODO remove count
             multimap = stats.getInteractions(gid, null);
-            GMLHelper.writeToFileM("interactions" + fileName, multimap);
+            GMLHelper.writeToFileM2("interactions" + fileName, multimap);
 
             stats.saveDynamics(gid, null);
 
