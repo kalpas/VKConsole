@@ -45,6 +45,8 @@ public class ConsoleVKwrapper {
     private static Option            group     = null;
     private static Option            file      = null;
     private static Option            dynamics  = null;
+    private static Option            posts     = null;
+    private static Option            days      = null;
 
     private static Injector          injector  = Guice.createInjector(new VKModule());
 
@@ -94,7 +96,7 @@ public class ConsoleVKwrapper {
             throw new IllegalArgumentException("neither group id nor user id were specified");
         }
     }
-    
+
     private static void getDynamics(CommandLine line) {
         if (line.getOptionValue(group.getOpt()) != null) {
 
@@ -107,13 +109,32 @@ public class ConsoleVKwrapper {
 
             WallStats stats = injector.getInstance(WallStats.class);
 
-            Multimap<User, Map.Entry<EdgeProperties, User>> multimap = stats.getRepostsNet(gid);
-            GMLHelper.writeToFileM("reposts" + fileName, multimap);
+            String daysCountString = line.getOptionValue(days.getOpt());
+            if (daysCountString == null) {
 
-            multimap = stats.getInteractions(gid, null);
-            GMLHelper.writeToFileM2("interactions" + fileName, multimap);
+                Multimap<User, Map.Entry<EdgeProperties, User>> multimap = stats.getRepostsNet(gid);
+                GMLHelper.writeToFileM("reposts" + fileName, multimap);
 
-            stats.saveDynamics(gid, null);
+                multimap = stats.getInteractions(gid, null);
+                GMLHelper.writeToFileM2("interactions" + fileName, multimap);
+
+                stats.saveDynamics(gid, null);
+            } else {
+                Integer daysCount = Integer.valueOf(daysCountString);
+                if (daysCount != null) {
+                    Multimap<User, Map.Entry<EdgeProperties, User>> multimap = stats.getRepostsNet4Period(gid,
+                            daysCount);
+                    GMLHelper.writeToFileM("reposts" + fileName, multimap);
+
+                    multimap = stats.getInteractions4Period(gid, daysCount);
+                    GMLHelper.writeToFileM2("interactions" + fileName, multimap);
+
+                    stats.saveDynamics4Period(gid, daysCount);
+                } else {
+                    throw new IllegalArgumentException("wrong value for nmber of days specified");
+                }
+
+            }
 
             injector.getInstance(HttpClientContainer.class).shutdown();
 
@@ -133,12 +154,18 @@ public class ConsoleVKwrapper {
         group = OptionBuilder.withArgName("gid").hasArg().withDescription("group id").withLongOpt("group").create("g");
         file = OptionBuilder.withArgName("file").hasArg().withDescription("output file").withLongOpt("file")
                 .create("f");
+        posts = OptionBuilder.withArgName("posts").hasArg().withDescription("take into account only last n posts")
+                .withLongOpt("posts").create("p");
+        days = OptionBuilder.withArgName("days").hasArg()
+                .withDescription("take into account only posts for last n days").withLongOpt("days").create("d");
 
         options.addOption(group);
         options.addOption(user);
         options.addOption(graph);
         options.addOption(file);
         options.addOption(dynamics);
+        options.addOption(posts);
+        options.addOption(days);
         return options;
     }
 }
